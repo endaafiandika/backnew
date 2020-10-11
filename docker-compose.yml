@@ -1,0 +1,27 @@
+version: '3.8'
+services:
+  redis:
+    container_name: redis2
+    image: redis:latest
+    command: redis-server --requirepass kodekonan
+    ports:
+     - "6380:6379"
+  nodejs:
+    container_name: backend2
+    image: backend:7.0
+    volumes:
+      - .:/usr/app/
+      - /usr/app/node_modules
+    ports:
+      - "8083:3000"
+    restart: always
+
+  frontend:
+    container_name: frontend2
+    image: frontend:5.0
+    volumes:
+      - .:/app
+      - /app/node_modules
+    ports:
+      - "8082:80"
+    restart: always
