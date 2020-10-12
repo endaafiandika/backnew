@@ -1,12 +1,11 @@
-FROM node:12
+FROM node:12.4.0-alpine
 
-WORKDIR /home/ubuntu/app
-
-COPY package*.json ./
-
-RUN npm install
+WORKDIR /usr/app
 
 COPY . .
 
+RUN npm install
+
 EXPOSE 3000
-CMD [ "node", "index.js" ]
+
+CMD ["npm", "start"]
