@@ -6,8 +6,8 @@ pipeline {
     agent any
 
     parameters {
-        booleanParam(name: 'RUNTEST', defaultValue: true, description: 'Toggle this value fro testing')
-        choice(name: 'CICD', choices: ['Deploy', 'Production'], description: 'Pick something')
+        booleanParam(name: 'RUNTEST', defaultValue: true, description: 'Toggle this value from testing')
+        choice(name: 'CICD', choices: ['Deployment', 'Production'], description: 'Pick something')
     }
 
     stages {
@@ -50,18 +50,18 @@ pipeline {
                     params.RUNTEST
                 }
             }
-
             steps {
+                
                 script {
                     builderDocker.push("${env.GIT_BRANCH}")
                 }
             }
         }
 
-        stage('Deploy') {
+        stage('Deploy on development') {
             when {
                 expression {
-                    params.CICD == 'Deploy'
+                    params.CICD == 'Deployment' || BRANCH_NAME == 'deployment'
                 }
             }
             steps {
@@ -73,7 +73,9 @@ pipeline {
                                 verbose: false,
                                 transfers: [
                                     sshTransfer(
-                                        execCommand: 'docker-compose up -d',
+                                        sourceFiles: 'docker-compose.yml',
+                                        remoteDirectory: 'backend',
+                                        execCommand: 'cd backend && docker-compose up -d',
                                         execTimeout: 120000,
                                     )
                                 ]
@@ -83,11 +85,10 @@ pipeline {
                 }
             }
         }
-
-        stage('Production') {
+        stage('Deploy on production') {
             when {
                 expression {
-                    params.CICD == 'Production'
+                    params.CICD == 'CICD Production' || BRANCH_NAME == 'production'
                 }
             }
             steps {
@@ -99,7 +100,9 @@ pipeline {
                                 verbose: false,
                                 transfers: [
                                     sshTransfer(
-                                        execCommand: 'docker-compose up -d',
+                                        sourceFiles: 'docker-compose.yml',
+                                        remoteDirectory: 'backend',
+                                        execCommand: 'cd backend && docker-compose up -d',
                                         execTimeout: 120000,
                                     )
                                 ]
@@ -108,6 +111,6 @@ pipeline {
                     )
                 }
             }
-        }        
+        }
     }
 }
