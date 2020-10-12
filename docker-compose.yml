@@ -1,27 +1,64 @@
-version: '3.8'
-services:
-  redis:
-    container_name: redis2
-    image: redis:latest
-    command: redis-server --requirepass kodekonan
-    ports:
-     - "6380:6379"
-  nodejs:
-    container_name: backend2
-    image: backend:7.0
-    volumes:
-      - .:/usr/app/
-      - /usr/app/node_modules
-    ports:
-      - "8083:3000"
-    restart: always
+version: '3.3'
 
-  frontend:
-    container_name: frontend2
-    image: frontend:5.0
-    volumes:
-      - .:/app
-      - /app/node_modules
-    ports:
-      - "8082:80"
-    restart: always
+services:
+    backend:
+        image: endaafiandika/backnew:main
+        container_name: backend
+        ports:
+            - 3000:3000
+        networks:
+            - deploy
+        depends_on:
+            - postgres
+        environment: 
+            - PORT=3000
+            - REDIS_HOST=redis
+            - REDIS_PORT=6379
+            - REDIS_PASSWORD=kodekonan
+            - DB_HOST=postgres
+            - DB_USER=postgres
+            - DB_PASSWORD=postgres
+            - DB_NAME=kopishop
+            - JWT_KEYS=sdsdfdf
+        deploy:
+            resources:
+                limits:
+                    cpus: '1'
+                    memory: 200M
+                reservations:
+                    cpus: '1'
+                    memory: 200M    
+    postgres:
+        image: postgres
+        container_name: postgres
+        environment:
+            - POSTGRES_USER=postgres
+            - POSTGRES_PASSWORD=postgres
+            - POSTGRES_DB=kopishop
+        ports:
+            - 5432:5432
+        networks: 
+            - deploy
+        volumes:
+            - ./postgres-data:/var/lib/postgresql/data
+    redis:
+        image: redis
+        command: redis-server --requirepass kodekonan
+        container_name: redis
+        environment: 
+            - REDIS_PORT=6379
+            - REDIS_PASSWORD=kodekonan
+        ports: 
+            - 6379:6379
+        networks:
+            - deploy
+        volumes:
+            - ./redis-data:/var/lib/redis
+
+networks:
+    deploy:
+        driver: bridge
+    
+volumes:
+    postgres-data:
+    redis-data:
