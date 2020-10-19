@@ -7,7 +7,6 @@ pipeline {
 
     parameters {
         booleanParam(name: 'RUNTEST', defaultValue: true, description: 'Toggle this value from testing')
-        choice(name: 'CICD', choices: ['Deployment', 'Production'], description: 'Pick something')
     }
 
     stages {
@@ -20,63 +19,100 @@ pipeline {
             }
         }
 
-        stage('Build Docker Image') {
-            steps {
-                script {
-                    CommitHash = sh (script : "git log -n 1 --pretty=format:'%H'", returnStdout: true)
-                    builderDocker = docker.build("endaafiandika/backnew:${CommitHash}")
+    stage('ansible for development') {
+            when {
+                expression {
+                    BRANCH_NAME == "deployment"
+                }
+            }
+            steps{
+               script {
+                    sshPublisher(
+                        publishers: [
+                            sshPublisherDesc(
+                                configName: 'ansible',
+                                verbose: false,
+                                transfers: [
+                                    sshTransfer(
+                                        execCommand: 'cd ansible; ansible-playbook -i hosts backend.yml',
+                                    )
+                                ]
+                            )
+                        ]
+                    )
                 }
             }
         }
+
+
+        stage('ansible for production') {
+            when {
+                expression {
+                    BRANCH_NAME == "production"
+                }
+            }
+            steps{
+               script {
+                    sshPublisher(
+                        publishers: [
+                            sshPublisherDesc(
+                                configName: 'ansible',
+                                verbose: false,
+                                transfers: [
+                                    sshTransfer(
+                                        execCommand: 'cd ansible; ansible-playbook -i hosts backend.yml',
+                                    )
+                                ]
+                            )
+                        ]
+                    )
+                }
+            }
+        }
+
+        stage('Run Testing production') {
+            when {
+                expression {
+                    BRANCH_NAME == "production"  
+                }
+            }
+            steps{
+               script {
+                    sshPublisher(
+                        publishers: [
+                            sshPublisherDesc(
+                                configName: 'ansible',
+                                verbose: false,
+                                transfers: [
+                                    sshTransfer(
+                                        execCommand: 'cd ansible; ansible backend -a "cd project/backnew; docker-compose -up -d"',
+                                        execTimeout: 60000,
+                                    )
+                                ]
+                            )
+                        ]
+                    )
+                }
+            }
+        } 
 
         stage('Run Testing') {
             when {
                 expression {
-                    params.RUNTEST
+                    BRANCH_NAME == "deployment"|| BRANCH_NAME == "production"
                 }
             }
-            steps {
-                script {
-                    builderDocker.inside {
-                        sh 'echo passed'
-                    }
-                }
-            }
-        }
-
-        stage('Push Image') {
-            when {
-                expression {
-                    params.RUNTEST
-                }
-            }
-            steps {
-                
-                script {
-                    builderDocker.push("${env.GIT_BRANCH}")
-                }
-            }
-        }
-
-        stage('Deploy on development') {
-            when {
-                expression {
-                    params.CICD == 'Deployment' || BRANCH_NAME == 'deployment'
-                }
-            }
-            steps {
-                script {
+            steps{
+               script {
                     sshPublisher(
                         publishers: [
                             sshPublisherDesc(
-                                configName: 'deployment',
+                                configName: 'ansible',
                                 verbose: false,
                                 transfers: [
                                     sshTransfer(
-                                        sourceFiles: 'docker-compose.yml',
-                                        remoteDirectory: 'backend',
-                                        execCommand: 'cd backend && docker-compose up -d',
-                                        execTimeout: 120000,
+                                        execCommand: 'ansible dev-server -a "curl localhost:8080"',
+                                        execTimeout: 60000,
                                     )
                                 ]
                             )
@@ -85,32 +121,8 @@ pipeline {
                 }
             }
         }
-        stage('Deploy on production') {
-            when {
-                expression {
-                    params.CICD == 'Production' || BRANCH_NAME == 'production'
-                }
-            }
-            steps {
-                script {
-                    sshPublisher(
-                        publishers: [
-                            sshPublisherDesc(
-                                configName: 'production',
-                                verbose: false,
-                                transfers: [
-                                    sshTransfer(
-                                        sourceFiles: 'docker-compose.yml',
-                                        remoteDirectory: 'backend',
-                                        execCommand: 'cd backend && docker-compose up -d',
-                                        execTimeout: 120000,
-                                    )
-                                ]
-                            )
-                        ]
-                    )
-                }
-            }
-        }
+
+
+
     }
 }
